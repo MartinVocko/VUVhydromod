@@ -7,13 +7,24 @@ library(hydroGOF, quietly = TRUE)
 ModelInput <- readRDS("~/Plocha/VUV/Vocko/ModelInput.rds")
 ObsDischarge <- readRDS("~/Plocha/VUV/Vocko/ObsDischarges.rds")
 
+#..................................
+#nahrani dat s PET 
+#..................................
+ModelInput=MET[,c(4,6):=NULL]
+ObsDischarge=MET[,c(1,4,6)]
 # ------------------------------------------------------------------------------
 # ---- CALIBRATION AND VALIDATION PERIODS ----
 # ------------------------------------------------------------------------------
 
-sapply(list(ObsDischarge$disc, ModelInput$temp), length) # Full times series is 4383, divide on cal and val periods
-Period_cal <- cbind(ModelInput[1:2192, ], runoff = ObsDischarge[1:2192, 4])
-Period_val <- cbind(ModelInput[2193:nrow(ModelInput), ], runoff = ObsDischarge[2193:nrow(ObsDischarge), 4])
+#sapply(list(ObsDischarge$dic, ModelInput$temp), length) # Full times series is 4383, divide on cal and val periods
+#Period_cal <- cbind(ModelInput[1:2192, ], runoff = ObsDischarge[1:2192, 4])
+#Period_val <- cbind(ModelInput[2193:nrow(ModelInput), ], runoff = ObsDischarge[2193:nrow(ObsDischarge), 4])
+
+sapply(list(ObsDischarge$R, ModelInput$T), length) # Full times series is 4383, divide on cal and val periods
+Period_cal <- cbind(ModelInput[1:1202, ], ObsDischarge[1:1202, 2])
+Period_val <- cbind(ModelInput[1203:nrow(ModelInput), ], ObsDischarge[1203:nrow(ObsDischarge), 2])
+
+
 
 # ------------------------------------------------------------------------------
 # ---- MODEL FUNCTION ----
@@ -77,19 +88,19 @@ TUW_optimized <- DEoptim(fn = TUW,
                                    FC = 500.0, BETA = 20.0, k0 = 2.0, k1 = 30, k2 = 250, lsuz = 100,
                                    cperc = 8.0, bmax = 30.0, croute = 50.0), 
                          control = eval(DE_control), 
-                         R = Period_cal$runoff, 
-                         prec = Period_cal$prec, 
-                         ep = Period_cal$pet,
-                         airt = Period_cal$temp)
+                         R = Period_cal$R,   #Period_cal$runoff
+                         prec = Period_cal$P,    #Period_cal$prec
+                         ep = Period_cal$PET,      #Period_cal$pet 
+                         airt = Period_cal$T)   #Period_cal$temp
 
 # TUW_sim should then contain components of 
 #   swe  = snow water equaivalent   [mm],
 #   melt = snowmelt equivalent      [mm/timestep],
 #   snow = snow solid precipitation [mm/timestep]
 TUW_pars <- TUW_optimized$optim$bestmem
-TUW_res <- TUWmodel(prec = ModelInput$prec, 
-                    ep   = ModelInput$pet,                                      # potential ET
-                    airt = ModelInput$temp,                                     # mean air temperature
+TUW_res <- TUWmodel(prec = ModelInput$P, #ModelInput$prec
+                    ep   = ModelInput$PET,   #ModelInput$pet                    # potential ET
+                    airt = ModelInput$T,   #ModelInput$temp                  # mean air temperature
                     area = 1,                                                   # only one zone, if more zones than sum has to equal 1
                     param = TUW_pars,
                     incon = c(SSM0 = 50,                                        # vector of initial conditions
@@ -97,7 +108,7 @@ TUW_res <- TUWmodel(prec = ModelInput$prec,
                               SUZ0 = 2.5,
                               SLZ0 = 2.5), 
                     itsteps = NULL)
-plot(ObsDischarge$disc, type = "l")
+plot(ObsDischarge$R, type = "l")       #ObsDischarge$disc
 lines(TUW_res$q[1, ], col = "red")
 
 # ---- PARAMETER POPULATIONS
