@@ -66,7 +66,7 @@ TUW <- function(x = c(SCF = 1.2, DDF = 1.2, Tr = 2,
   # Kling-Gupta efficiency, others in hydroGOF, one year warm-up   
   # objective_function <- (-1*KGE(sim = RM[366:length(RM)], obs = R[366:length(R)],
   #                           s = c(1,1,1), method = "2012"))
-    objective_function <- mae(sim = RM[366:length(RM)], obs = R[366:length(R)])
+    objective_function <- mse(sim = RM[366:length(RM)], obs = R[366:length(R)])
   return(objective_function)
 }
 # ---- ACTUAL OPTIMA OF OBJECTIVE FUNCTION (CALIBRATION CRITERIA) --------------
@@ -74,19 +74,19 @@ TUW <- function(x = c(SCF = 1.2, DDF = 1.2, Tr = 2,
 OF_optima <- 0 # passed to VTR in DEoptim.control
 #-------------------------------------------------------------------------------
 DE_control <- expression(DEoptim.control(VTR = OF_optima, strategy = 1, bs = FALSE,
-                                         NP = 400, itermax = 1000, CR = 0.5, F = 0.8, trace = 10, 
-                                         initialpop = NULL, storepopfrom = 1000 + 1, storepopfreq = 1, 
+                                         NP = 1000, itermax = 10000, CR = 0.5, F = 0.8, trace = 10, 
+                                         initialpop = NULL, storepopfrom = 10000 + 1, storepopfreq = 1, 
                                          p = 0.1, c = 0.05, reltol = 1e-02, steptol = 50, parallelType = 0, cluster = NULL, 
                                          packages = c(), parVar = c(), foreachArgs = list()))
 #-------------------------------------------------------------------------------
 # 
 TUW_optimized <- DEoptim(fn = TUW, 
-                         lower = c(SCF = 0.9, DDF = 1.2, Tr = 1.0, Ts = -3.0, Tm = -2, LPrat = 0.0,
-                                   FC = 150.0, BETA = 0.5, k0 = 0.0, k1 = 2, k2 = 30, lsuz = 1.0,
-                                   cperc = 0.0, bmax = 10.0, croute = 0.0), 
-                         upper = c(SCF = 1.5, DDF = 2.0, Tr = 3.0, Ts = 1.0, Tm = 2, LPrat = 1.0,
-                                   FC = 500.0, BETA = 20.0, k0 = 2.0, k1 = 30, k2 = 250, lsuz = 100,
-                                   cperc = 8.0, bmax = 30.0, croute = 50.0), 
+                         lower = c(SCF = 0.9, DDF = 1.2, Tr = 1.0, Ts = 0, Tm = -1, LPrat = 0.0,
+                                   FC = 0.0, BETA = 2, k0 = 0.0, k1 = 1, k2 = 10, lsuz = 0.0,
+                                   cperc = 0.0, bmax = 0, croute = 0.0), 
+                         upper = c(SCF = 1.5, DDF = 20.0, Tr = 2.0, Ts = 1, Tm = 0, LPrat = 1.0,
+                                   FC = 10.0, BETA = 30.0, k0 = 2.0, k1 = 10, k2 = 50, lsuz = 50,
+                                   cperc = 6.0, bmax = 30.0, croute = 50.0), 
                          control = eval(DE_control), 
                          R = Period_cal$R,   #Period_cal$runoff
                          prec = Period_cal$P,    #Period_cal$prec
