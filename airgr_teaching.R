@@ -1,15 +1,16 @@
 install.packages("airGRteaching")
 library(airGRteaching)
+library(shiny)
 
 BasinObs=readRDS("MET")
 
 BasinObs$DatesR<-as.POSIXct(BasinObs$Date)
 
-BasinObs$Date=NULL
-BasinObs$Q=NULL
-names(BasinObs)[4]<-"E"
-names(BasinObs)[3]<-"Qmm"
-setcolorder(BasinObs,c(5,2,4,3,1))
+#BasinObs$Date=NULL
+#BasinObs$Q=NULL
+#names(BasinObs)[4]<-"E"
+#names(BasinObs)[3]<-"Qmm"
+#setcolorder(BasinObs,c(5,2,4,3,1))
 
 #PREP=PrepGR(ObsDF=BasinObs, HydroModel = "GR4J", CemaNeige=TRUE)
 DatesR= as.POSIXct(as.Date(BasinObs$Date),tz="UTC")
@@ -32,3 +33,20 @@ plot(CAL, which="iter")
 
 
 dyplot(SIM, main="Simulation")
+
+###### SHINY
+
+BasinObs=readRDS("MET")
+DatesR= as.POSIXct(as.Date(BasinObs$Date),tz="UTC")
+attributes(DatesR)$tzone <- "UTC"
+BasinObs$DatesR<-DatesR
+
+BasinObs$Date=NULL
+BasinObs$Q=NULL
+names(BasinObs)[4]<-"E"
+names(BasinObs)[3]<-"Qmm"
+setcolorder(BasinObs,c(5,2,4,3,1))
+
+
+
+ShinyGR(ObsDF = BasinObs, SimPer= c("2014-01-01", "2018-08-01"), theme = 'Flatly')

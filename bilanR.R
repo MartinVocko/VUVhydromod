@@ -71,3 +71,4 @@ MET$Q<-dqagr$V1
 
 MET$R<-(((MET$Q*60*60*24)/(a*1000000))*1000)
 
+saveRDS(MET,"MET")
