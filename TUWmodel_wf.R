@@ -10,6 +10,7 @@ ObsDischarge <- readRDS("~/Plocha/VUV/Vocko/ObsDischarges.rds")
 #..................................
 #nahrani dat s PET 
 #..................................
+MET=readRDS('MET')
 ModelInput=MET[,c(4,6):=NULL]
 ObsDischarge=MET[,c(1,4,6)]
 # ------------------------------------------------------------------------------

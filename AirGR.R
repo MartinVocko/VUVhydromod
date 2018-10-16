@@ -40,6 +40,7 @@ OutputsModel <- RunModel_GR4J(InputsModel = InputsModel,
 #Param <- c(734.568, -0.840, 109.809, 1.971)
 #OutputsModel <- RunModel(InputsModel = InputsModel, RunOptions = RunOptions, Param = Param,
                         # FUN_MOD = RunModel_GR4J)
+
 ## results preview
 plot(OutputsModel, Qobs = BasinObs$R[Ind_Run])
 ## efficiency criterion: Nash-Sutcliffe Efficiency
