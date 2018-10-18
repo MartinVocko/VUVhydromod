@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+#####HEAD
 library(TUWmodel)
 data(example_TUWmodel)
 # TUW CELISTVY - neoptimalizovany, vazeny prumer vstupu
@@ -35,7 +35,9 @@ lines(as.Date(rownames(T_Vils)), simLump$swe, col = 2)
 # ------------------------------------------------------------------------------
 # TUW CELISTVY - optimalizovany, vazeny prumer vstupu
 library(TUWmodel)
-MET=readRDS('MET')
+library(data.table)
+library(zoo)
+m_input=readRDS('MET')
 
 # KALIBRACNI KRIERIUM
 # ----------------------------------------------------------------------------
@@ -53,28 +55,32 @@ MSE <- function(param, precip, temp, potevap, runoff, area) {
   mean((simu - obse)^2, na.rm = TRUE)  # mean square error
 }
 # ------------------------------------------------------------------------------
-m_input <- readRDS(file.choose()) # 
-names(m_input) <- c("D", "M", "Y", "P", "T", "Q")
+#m_input <- readRDS(file.choose()) # 
+#m_input$Date=format(as.Date(m_input$Date, '%Y-%m-%d'), "%d %m %Y") #preklopene poradi datumu abz sedelo na nasledujici skript
+#names(m_input) <- c("D", "M", "Y", "P", "T", "Q")
 SI <- c(0.19, 0.23, 0.27, 0.31, 0.35, 0.37, 0.36, 0.33, 0.29, 0.25, 0.20, 0.18)
-area <- 250                         # podle hlavicky vstupniho souboru
+area <- 321.64                       # podle hlavicky vstupniho souboru
 
 # Nasledujici kod vytvori casovou radu
-DTM <- as.Date(strptime(paste(m_input[, 1], m_input[, 2], m_input[, 3]), format = "%d %m %Y"))
-Prec <- zoo(m_input[,4], order.by = DTM)    # denni srazka na povodi (mm/d)
-Temp <- zoo(m_input[,5], order.by = DTM)    # prumerna denni teplota na povodi (Â°C)
+#DTM <- as.Date(strptime(paste(m_input[, 1], m_input[, 2], m_input[, 3]), format = "%d %m %Y"))
+DTM=as.Date(m_input$Date)
+Prec <- zoo(m_input[,3], order.by = DTM)    # denni srazka na povodi (mm/d)
+Temp <- zoo(m_input[,2], order.by = DTM)    # prumerna denni teplota na povodi (Â°C)
 Q <- zoo(m_input[,6], order.by = DTM)    # prumerny denni mereny prutok (m3/s)
 
 # Nasledujici kod vypocte potencialni evapotranspiraci dle modifikovane Blaney-Criddle metody (Schroedter, 1985)
-repeated_SI <- SI[as.numeric(format(index(Temp), '%m'))]
+#repeated_SI <- SI[as.numeric(index(Temp), '%m')]
+repeated_SI <- rep(SI, length.out=length(Temp))
 EP <- -1.55 + 0.96*(8.128 + 0.457*Temp) * repeated_SI
-EP[EP < 0] <- 0                     # denni potencialni evapotranspirace (mm/d)
-
+EP=as.data.table(EP)
+EP[EP$T < 0,T := 0]                     # denni potencialni evapotranspirace (mm/d)
+EP=as.zoo(EP)
 
 # Nyni rozdelime soubor na dve po sobe jdouci casove rady
 yr <- unique(as.numeric(format(DTM, "%Y")))
 nyr <- length(yr)
 
-P1 <- window(Prec, end = as.Date(strptime(paste("31 12", yr[floor(nyr/2)]), format = "%d %m %Y")))
+P1 <- window(Prec, end = as.Date(strptime(paste("-12-31", yr[floor(nyr/2)]), format = "%Y-%m-%d")))
 T1 <- window(Temp, end = as.Date(strptime(paste("31 12", yr[floor(nyr/2)]), format = "%d %m %Y")))
 EP1 <- window(EP, end = as.Date(strptime(paste("31 12", yr[floor(nyr/2)]), format = "%d %m %Y")))
 Q1 <- window(Q, end = as.Date(strptime(paste("31 12", yr[floor(nyr/2)]), format = "%d %m %Y")))
@@ -83,6 +89,14 @@ P2 <- window(Prec, start = as.Date(strptime(paste("1 1", yr[nyr - floor(nyr/2) +
 T2 <- window(Temp, start = as.Date(strptime(paste("1 1", yr[nyr - floor(nyr/2) + 1]), format = "%d %m %Y")))
 EP2 <- window(EP, start = as.Date(strptime(paste("1 1", yr[nyr - floor(nyr/2) + 1]), format = "%d %m %Y")))
 Q2 <- window(Q, start = as.Date(strptime(paste("1 1", yr[nyr - floor(nyr/2) + 1]), format = "%d %m %Y")))
+
+
+
+####
+Prec1=fortify.zoo(Prec) #vytvori dataframe ze zoo
+
+####
+
 
 
 calibrate_period1 <- DEoptim(fn = MSE, 
@@ -428,4 +442,4 @@ simDist2 <- TUWmodel(prec = P_Vils,
 plot(as.Date(names(Q_Vils)), Q_Vils, type="l", xlab="", ylab = "Odtok [mm/den]")
 lines(as.Date(rownames(T_Vils)), simDist2$q, col=2)
 legend("topleft", legend = c("Pozorovane","Simulovane"), col = c(1, 2), lty = 1, bty = "n")
->>>>>>> 50919ff1cf34ebdae09da7cef60c205ed1ef6ea3
+
