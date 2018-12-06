@@ -38,6 +38,7 @@ library(TUWmodel)
 library(data.table)
 library(zoo)
 m_input=readRDS('MET')
+m_input$Date=as.Date(m_input$Date)
 
 # KALIBRACNI KRIERIUM
 # ----------------------------------------------------------------------------
@@ -62,38 +63,31 @@ SI <- c(0.19, 0.23, 0.27, 0.31, 0.35, 0.37, 0.36, 0.33, 0.29, 0.25, 0.20, 0.18)
 area <- 321.64                       # podle hlavicky vstupniho souboru
 
 # Nasledujici kod vytvori casovou radu
-#DTM <- as.Date(strptime(paste(m_input[, 1], m_input[, 2], m_input[, 3]), format = "%d %m %Y"))
-DTM=as.Date(m_input$Date)
-Prec <- zoo(m_input[,3], order.by = DTM)    # denni srazka na povodi (mm/d)
-Temp <- zoo(m_input[,2], order.by = DTM)    # prumerna denni teplota na povodi (Â°C)
-Q <- zoo(m_input[,6], order.by = DTM)    # prumerny denni mereny prutok (m3/s)
+Prec <- m_input[,.(Date,P)]  # denni srazka na povodi (mm/d)
+Temp <- m_input[,.(Date,T)]    # prumerna denni teplota na povodi (Â°C)
+Q <- m_input[,.(Date,Q)]    # prumerny denni mereny prutok (m3/s)
 
 # Nasledujici kod vypocte potencialni evapotranspiraci dle modifikovane Blaney-Criddle metody (Schroedter, 1985)
 #repeated_SI <- SI[as.numeric(index(Temp), '%m')]
-repeated_SI <- rep(SI, length.out=length(Temp))
-EP <- -1.55 + 0.96*(8.128 + 0.457*Temp) * repeated_SI
+repeated_SI <- rep(SI, length.out=length(Temp$T))
+EP <- -1.55 + 0.96*(8.128 + 0.457*Temp$T) * repeated_SI
 EP=as.data.table(EP)
-EP[EP$T < 0,T := 0]                     # denni potencialni evapotranspirace (mm/d)
-EP=as.zoo(EP)
+EP[EP < 0,EP := 0] # denni potencialni evapotranspirace (mm/d)
+EP$Date=m_input$Date
 
 # Nyni rozdelime soubor na dve po sobe jdouci casove rady
-yr <- unique(as.numeric(format(DTM, "%Y")))
-nyr <- length(yr)
-
-P1 <- window(Prec, end = as.Date(strptime(paste("-12-31", yr[floor(nyr/2)]), format = "%Y-%m-%d")))
-T1 <- window(Temp, end = as.Date(strptime(paste("31 12", yr[floor(nyr/2)]), format = "%d %m %Y")))
-EP1 <- window(EP, end = as.Date(strptime(paste("31 12", yr[floor(nyr/2)]), format = "%d %m %Y")))
-Q1 <- window(Q, end = as.Date(strptime(paste("31 12", yr[floor(nyr/2)]), format = "%d %m %Y")))
-
-P2 <- window(Prec, start = as.Date(strptime(paste("1 1", yr[nyr - floor(nyr/2) + 1]), format = "%d %m %Y")))
-T2 <- window(Temp, start = as.Date(strptime(paste("1 1", yr[nyr - floor(nyr/2) + 1]), format = "%d %m %Y")))
-EP2 <- window(EP, start = as.Date(strptime(paste("1 1", yr[nyr - floor(nyr/2) + 1]), format = "%d %m %Y")))
-Q2 <- window(Q, start = as.Date(strptime(paste("1 1", yr[nyr - floor(nyr/2) + 1]), format = "%d %m %Y")))
-
-
 
 ####
-Prec1=fortify.zoo(Prec) #vytvori dataframe ze zoo
+P1=Prec[Date>="2012-01-01" & Date<="2013-12-31"]
+T1=Temp[Date>="2012-01-01" & Date<="2013-12-31"]
+EP1=EP[Date>="2012-01-01" & Date<="2013-12-31"]
+Q1=Q[Date>="2012-01-01" & Date<="2013-12-31"]
+
+
+P2=Prec[Date>="2014-01-01" & Date<="2018-08-01"]
+T2=Temp[Date>="2014-01-01" & Date<="2018-08-01"]
+EP2=EP[Date>="2014-01-01" & Date<="2018-08-01"]
+Q2=Q[Date>="2014-01-01" & Date<="2018-08-01"]
 
 ####
 
@@ -108,14 +102,14 @@ calibrate_period1 <- DEoptim(fn = MSE,
                                                        steptol = 50, 
                                                        trace = 10, 
                                                        parallelType = 0),
-                             precip = P1, 
-                             temp = T1, 
-                             potevap = EP1, 
-                             runoff = Q1, 
+                             precip = P1$P, 
+                             temp = T1$T, 
+                             potevap = EP1$EP, 
+                             runoff = Q1$Q, 
                              area = area)
-simulation1_cal1 <- TUWmodel(prec = as.numeric(P1), 
-                             airt = as.numeric(T1), 
-                             ep = as.numeric(EP1), 
+simulation1_cal1 <- TUWmodel(prec = (P1$P), 
+                             airt = (T1$T), 
+                             ep = (EP1$EP), 
                              area = area, 
                              param = calibrate_period1$optim$bestmem)
 calibrate_period2 <- DEoptim(fn = MSE, 
@@ -127,35 +121,35 @@ calibrate_period2 <- DEoptim(fn = MSE,
                                                        steptol = 50, 
                                                        trace = 10, 
                                                        parallelType = 0),
-                             precip = P2, 
-                             temp = T2, 
-                             potevap = EP2, 
-                             runoff = Q2, 
+                             precip = P2$P, 
+                             temp = T2$T, 
+                             potevap = EP2$EP, 
+                             runoff = Q2$Q, 
                              area = area)
-simulation1_cal2 <- TUWmodel(prec = as.numeric(P2), 
-                             airt = as.numeric(T2), 
-                             ep = as.numeric(EP2), 
+simulation1_cal2 <- TUWmodel(prec = as.numeric(P2$P), 
+                             airt = as.numeric(T2$T), 
+                             ep = as.numeric(EP2$EP), 
                              area = area, 
                              param = calibrate_period2$optim$bestmem)
 
-simulation2_val1 <- TUWmodel(prec = as.numeric(P1), 
-                             airt = as.numeric(T1), 
-                             ep = as.numeric(EP1), 
+simulation2_val1 <- TUWmodel(prec = as.numeric(P1$P), 
+                             airt = as.numeric(T1$T), 
+                             ep = as.numeric(EP1$EP), 
                              area = area, 
                              param = calibrate_period2$optim$bestmem)
 
-plot(x = DTM[1:4749], y = Q1, 
+plot(x = m_input$Date[1:length(Q1$Q)], y = Q1$Q, 
      type = "l", 
      xlab = "", 
      ylab = "Odtok [mm/den]")
-lines(x = DTM[1:4749], y = simulation1_cal1$q[1,], col = "red")
+lines(x = m_input$Date[1:length(Q1$Q)], y = simulation1_cal1$q[1,], col = "red")
 legend("topleft", legend = c("Pozorovane", "Simulovane"), col = c(1,2), lty = 1, bty = "n")
 
-plot(x = DTM[1:4748], y = Q2, 
+plot(x = m_input$Date[1:length(Q2$Q)], y = Q2$Q, 
      type = "l", 
      xlab = "", 
      ylab = "Odtok [mm/den]")
-lines(x = DTM[1:4748], y = simulation1_cal2$q[1,], col = "red")
+lines(x = m_input$Date[1:length(Q2$Q)], y = simulation1_cal2$q[1,], col = "red")
 legend("topleft", legend = c("Pozorovane", "Simulovane"), col = c(1,2), lty = 1, bty = "n")
 
 EMs <- function (sim, obs, warmup=365) {
@@ -188,8 +182,8 @@ EMs <- function (sim, obs, warmup=365) {
   return(output)
 }
 
-efficiencies <- rbind(EMs(3.6*24*as.numeric(simulation1_cal1$q)/area, 3.6*24*as.numeric(Q1)/area),
-                      EMs(3.6*24*as.numeric(simulation2_val1$q)/area, 3.6*24*as.numeric(Q1)/area))
+efficiencies <- rbind(EMs(3.6*24*as.numeric(simulation1_cal1$q)/area, 3.6*24*as.numeric(Q1$Q)/area),
+                      EMs(3.6*24*as.numeric(simulation2_val1$q)/area, 3.6*24*as.numeric(Q1$Q)/area))
 rownames(efficiencies) <- c("cal1", "cal2", "val1", "val2")
 print(signif(efficiencies, 3))
 
@@ -209,8 +203,8 @@ flowdurations <- function (sim, obs, warmup=365, xlab="F(x > X)", ylab="x", ...)
   lines(1 - quantili, sim_fdc, col="red")
 }
 
-flowdurations(simulation1_cal1$q, Q1, log="y", ylab="Cal period 1")
-flowdurations(simulation2_val1$q, Q1, log="y", ylab="Val period 1")
+flowdurations(simulation1_cal1$q, Q1$Q, log="y", ylab="Cal period 1")
+flowdurations(simulation2_val1$q, Q1$Q, log="y", ylab="Val period 1")
 
 # DISTRIBUOVANY MODEL
 # ------------------------------------------------------------------------------
