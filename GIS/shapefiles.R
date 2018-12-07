@@ -1,6 +1,11 @@
 install.packages("ggmap")
 install.packages('rgl')
 install.packages('rasterVis')
+install.packages("sp")
+install.packages("raster")
+install.packages('rgdal')
+install.packages('rgeos')
+install.packages('maptools')
 
 library (ggmap)
 library(sp)  # vector data
@@ -22,7 +27,7 @@ vlek=readShapeLines("~/Plocha/DATA/GITHUB/VUVhydromod/GIS/vlekyalanovky.shp")
 metstanice=readOGR("/media/martin/COPERNICUS/VUVsnih/GIS/metstanice.shp")
 
 
-setwd("/media/martin/COPERNICUS/VUVsnih/GIS")
+setwd("~/Plocha/DATA/GITHUB/VUVhydromod/GIS")
 povodi=raster('dtm_povodi')
 m=c(0, 600, 1, 600, 800, 2, 800, 1000, 3, 1000, 1200, 4, 1200, 1600, 5)
 rclmat = matrix(m, ncol=3, byrow=TRUE)
@@ -78,6 +83,7 @@ TAB=rbind(TAB,temp)
 
 temptab=cbind(tab,TAB)
 temptab
+
 #-----------------------------------------------------------------------------
 ##### vypocitat ochlazeni na jednom vyskovem metru, vzit nejblizsi stanici 
 #### a prepocitat teploty pro kazdou prumernou vysku zony
