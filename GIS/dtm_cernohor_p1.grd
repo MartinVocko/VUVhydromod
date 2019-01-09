@@ -1,0 +1,26 @@
+[general]
+creator=R package 'raster'
+created=2019-01-08 14:32:18
+[georeference]
+nrows=416
+ncols=481
+xmin=-641615.543595057
+ymin=-995734.467027914
+xmax=-636805.543595057
+ymax=-991574.467027914
+projection=NA
+[data]
+datatype=FLT4S
+byteorder=little
+nbands=1
+bandorder=BIL
+categorical=FALSE
+minvalue=684.75
+maxvalue=1297.48999023438
+nodatavalue=-3.4e+38
+[legend]
+legendtype=
+values=
+color=
+[description]
+layername=dtm_cernohor

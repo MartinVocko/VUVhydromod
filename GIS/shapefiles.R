@@ -8,6 +8,7 @@ install.packages('rgeos')
 install.packages('maptools')
 install.packages('lubridate')
 install.packages('dplyr')
+install.packages('gstat')
 
 library (ggmap)
 library(sp)  # vector data
@@ -20,6 +21,13 @@ library(rasterVis)
 library(data.table)
 library(lubridate)
 library(dplyr)
+library(bilan)
+library(gstat)
+library(TUWmodel)
+
+#oseknuti rastru na povodi k prvnimu mernemu profilu VUV
+dtm_cernohor_p1=mask(raster('dtm_cernohor'),cp[1,])
+writeRaster(dtm_cernohor_p1,"dtm_cernohor_p1")
 
 
 cp=readShapePoly("~/Plocha/DATA/GITHUB/VUVhydromod/GIS/Rozvodnice-Cernohorsky-podrobne.shp")
@@ -40,7 +48,7 @@ recdem = reclassify(povodi, rclmat)
 #recdempol= rasterToPolygons(povodi, fun=function(x){400<x;x<600}, dissolve=FALSE)
 
 
-povodi=raster('dtm_cernohor')
+povodi=raster('dtm_cernohor_p1')
 #povodi=raster('dtm_hutsky')
 #povodi=raster('dtm_zeleny')
 #povodi=raster('dtm_svatopetr')
@@ -92,11 +100,11 @@ temptab
 
 
 
-#-----------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------------------------------------------
 ##### vypocitat ochlazeni na jednom vyskovem metru, vzit nejblizsi stanici 
 #### a prepocitat teploty pro kazdou prumernou vysku zony
 
-#sestaveni tabulek teplot
+#### Sestaveni tabulek teplot #######################################################
 setwd("~/Plocha/DATA/GITHUB/VUVhydromod/Data/Data/Teploty")
 
 st1=data.frame(read.table("SSLATO01.txt",header=TRUE, col.names=c("Date", "Time", "T")))
@@ -176,15 +184,19 @@ st5<- merge(full_dat,st5, by = "Date", all.x = TRUE)
 
 
 stanice_t=cbind(st1[,2],st2[,2],st3[,2],st4[,2],st5[,2],st6[,2],st7[,2],st8[,2],st9[,2],st10[,2])
+stanice_dat=st1[,1]
 
-povodi=raster('dtm_cernohor')
+setwd("~/Plocha/DATA/GITHUB/VUVhydromod/GIS")
+povodi=raster('dtm_cernohor_p1')
 h=metstanice$Z
 fun<- function(x) {a + (x * b)}
 zone=c(z1,z2,z3,z4,z5)
 #tab=data.frame()
 zonetab=data.frame()
 
-for (i in length(stanice_t$V1)) {         #n2ejak to neseje...a neuklada do zonetab
+
+
+for (i in 1:length(stanice_t$V1)) {         
   
 t = as.numeric(as.vector(stanice_t[i,]))
   
@@ -194,38 +206,107 @@ b=fit$coefficients[2]
 
 povodi_t=calc(povodi, fun = fun)
 
-tab=data.frame()
+tab=data.frame(Date=stanice_dat[i,])
 
-for ( j in zone){
+    for ( j in zone){
   
-  zone_t = mask(povodi_t,j)
-  m = mean(zone_t@data@values, na.rm=TRUE)
-  tab=cbind(tab,m)
+       zone_t = mask(povodi_t,j)
+       m = mean(zone_t@data@values, na.rm=TRUE)
+       tab=cbind(tab,m)
+  
 }
 
 zonetab=rbind (zonetab, tab)
  
 }
 
+#uprava pro TUWmodel
+zoneT=zonetab
+rownames(zoneT)=(zonetab[[1]])
+zoneT$Date=NULL
+colnames(zoneT)=c("del","", "", "", "")
+zoneT$del=NULL
+zoneT=data.matrix(zoneT)
+
+
+###### Vypocet PET ##########################################################################################################
+
+zonePET=data.frame(Date=zonetab[1])
+
+for (i in 2:5 ) { 
+
+#a= 50   # rozloha km2
+b <- bil.new("d")
+bil.set.values(b, input_vars = zonetab[i], init_date = "2017-12-01")
+bil.pet(b)
+bil.get.values(b)
+#bil.set.area(b, a) # a=plocha povodi Dolni Sytova = 321.64 km2
+#bil.set.optim(b, method = "DE", crit = "MSE", DE_type = "best_one_bin", n_comp = 4,
+#              comp_size = 10, cross = 0.95, mutat_f = 0.95, mutat_k = 0.85, maxn_shuffles = 5,
+#              n_gen_comp = 10, ens_count = 5, seed = 446, weight_BF = 0, init_GS = 50)
+#bil.optimize(b)
+#bil.run(b)  
+bil.get.params(b)
+res=bil.get.values(b)
+res=data.table(res$vars)
+PET=res$PET
+
+zonePET =cbind(zonePET,PET)
+
+
+}
+
+
+#uprava pro TUWmodel
+zonePET$Date=NULL
+colnames(zonePET)=c("", "", "", "")
+rownames(zonePET)=(zonetab[[1]])
+zonePET=data.matrix(zonePET)
+
+
+
+####### Srazky ####
+
+#idw <- idw(formula =  your_rainfall ~ 1, locations = met_stations, newdata = grd)
+
+
+setwd("~/Plocha/DATA/GITHUB/VUVhydromod/Data/Data/Srazky")
+st8=data.frame(read.table("SSCHSR01.txt",header=TRUE, col.names=c("Date", "Time", "T")))
+st8=data.table(st8)
+st8=na.omit(st8)
+st8=st8[,sum(T), by = Date]
+st8$Date <- as.Date(st8$Date)
+st8=with(st8, st8[(Date >= "2017-12-01")])
+
+st8$V2=st8$V1
+st8$V3=st8$V1
+st8$V4=st8$V1
+#st8$V5=st8$V1
+zoneP=st8
+#colnames(zoneP)=c("Date", "P", "P", "P", "P")
+zoneP$Date=NULL
+colnames(zoneP)=c("", "", "", "")
+
+#zoneP=as.matrix(as.numeric(zoneP))
+rownames(zoneP)=(zonetab[[1]])
+zoneP=data.matrix(zoneP)
+
+
+#### Prutoky  #######
+
+setwd("~/Plocha/DATA/GITHUB/VUVhydromod/Data/Data/Prutoky")
+Q_obs=data.frame(read.table("cernohorsky2-01.txt",header=TRUE, col.names=c("Date", "Time", "Q")))
+Q_obs=data.table(Q_obs)
+Q_obs=na.omit(Q_obs)
+Q_obs=Q_obs[,mean(Q), by = Date]
+Q_obs$Date <- format(as.Date(Q_obs$Date, format = "%d.%m.%Y"), "%Y-%m-%d")
+Q_obs=with(Q_obs, Q_obs[(Date < "2018-08-02")])
 
 
 
 
-t= as.numeric(as.vector(stanice_t[1,]))
 
-fit=(lm(t ~ h))
-a=fit$coefficients[1]
-b=fit$coefficients[2]
-
-
-
-
-
-
-
-
-
-#----------------------------------------------------------------------------
+############################################################
 
 #linearni model vypocet teploty v zavislosti na vysce
 h=metstanice$Z
@@ -248,6 +329,9 @@ plot(stanice, col= 'red', pch=16, add=TRUE)
 plot(sjezd, col='darkgreen',lty=1, add=TRUE)
 plot(vlek, col='red',lty=2, add=TRUE)
 
+plot(metstanice)
+pointLabel(coordinates(metstanice),labels=metstanice$Jméno_sig) #pridani popisku
+
 povodi=SpatialPolygons(list(cp,hp))
 
 map1 <- get_map(location = "Praha",
@@ -256,3 +340,26 @@ map1 <- get_map(location = "Praha",
                 crop = FALSE,
                 zoom = 10)
 ggmap(map1)
+
+###### Model #######
+
+f=freq(recdem, useNA="no")
+s=sum(f[,2])
+zoneAreas=c(f[1,2]/s, f[2,2]/s, f[3,2]/s, f[4,2]/s)
+zoneP[2]=NULL
+
+parametri <- matrix(rep(c(1.02,1.70,2,0,-0.336,
+                          0.934,121,2.52,
+                          0.473,9.06,142,
+                          50.1,2.38,10,25), 6), ncol=6)
+parametri[2,] <- c(1.4, 1.7, 1.9, 2.2, 2.4, 3.0)
+simDist2 <- TUWmodel(prec = zoneP,
+                     airt = zoneT, 
+                     ep = zonePET, 
+                     area = zoneAreas,
+                     param = parametri)
+plot(as.Date(Q_obs$Date), Q_obs$V1, type="l", xlab="", ylab = "Odtok [mm/den]")
+lines(as.Date(rownames(zoneT)), simDist2$q, col=2)
+legend("topleft", legend = c("Pozorovane","Simulovane"), col = c(1, 2), lty = 1, bty = "n")
+
+plot(as.Date(rownames(zoneT)), simDist2$q, col=2, type="l")

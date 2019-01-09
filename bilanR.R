@@ -1,4 +1,4 @@
-install.packages("/home/martin/Plocha/VUV/bilan/bilan", 
+install.packages("~/Plocha/VUV/bilan/bilan", 
                  repos = NULL, 
                  type = "source")
 library(bilan)
