@@ -1,0 +1,26 @@
+[general]
+creator=R package 'raster'
+created=2019-01-17 16:49:34
+[georeference]
+nrows=566
+ncols=482
+xmin=-645965.110995051
+ymin=-990562.089427911
+xmax=-641145.110995051
+ymax=-984902.089427911
+projection=NA
+[data]
+datatype=FLT4S
+byteorder=little
+nbands=1
+bandorder=BIL
+categorical=FALSE
+minvalue=799.659973144531
+maxvalue=1318.76000976562
+nodatavalue=-3.4e+38
+[legend]
+legendtype=
+values=
+color=
+[description]
+layername=dtm_zeleny

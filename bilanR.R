@@ -1,11 +1,17 @@
 install.packages("~/Plocha/VUV/bilan/bilan", 
                  repos = NULL, 
                  type = "source")
+install.packages("Rcpp")
+
+
+library(Rcpp)
 library(bilan)
+library(data.table)
+
 
 # plocha povodi
 
-a= 321.64
+a= 4.187
 
 
 # Tavg = ... define time series of temperature
@@ -39,23 +45,33 @@ MET$P<-dpsum$V1
 #MET$PET<-0
 MET$R<-0
 
+
+
+MET=readRDS("BasinObs_Vlci")
+
 ### bilan
 
 b <- bil.new("d")
-bil.set.values(b, input_vars = MET[, 2:ncol(MET)], init_date = MET[1, Date])
+#bil.set.values(b, input_vars = MET[, 2:ncol(MET)], init_date = MET$Date)
+bil.set.values(b, data.frame(T = MET$T, R = MET$R, P = MET$P), MET$Date[1])
 bil.pet(b)
 bil.get.values(b)
 bil.set.area(b, a) # a=plocha povodi Dolni Sytova = 321.64 km2
 bil.set.optim(b, method = "DE", crit = "MSE", DE_type = "best_one_bin", n_comp = 4,
               comp_size = 10, cross = 0.95, mutat_f = 0.95, mutat_k = 0.85, maxn_shuffles = 5,
               n_gen_comp = 10, ens_count = 5, seed = 446, weight_BF = 0, init_GS = 50)
+#bil.set.params(b,list(Mec=0.2),"lower")
 bil.optimize(b)
 bil.run(b)  
 bil.get.params(b)
 res=bil.get.values(b)
 res=data.table(res$vars)
-PET=res$PET
+#PET=res$PET
 
+plot(as.Date(res$DTM), res$R, type="l", xlab="", ylab = "Odtok [mm/den]",main="Bilan",xlim=as.Date(c('2018-02-01','2018-08-01')))
+lines(as.Date(res$DTM), res$RM, col=2)
+legend("topleft", legend = c("Pozorovane","Simulovane"), col = c(1, 2), lty = 1, bty = "n")
+ 
 
 # Doplneni vypoctene PET
 MET$PET<-PET

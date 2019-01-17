@@ -25,12 +25,10 @@ library(bilan)
 library(gstat)
 library(TUWmodel)
 
-#oseknuti rastru na povodi k prvnimu mernemu profilu VUV
-dtm_cernohor_p1=mask(raster('dtm_cernohor'),cp[1,])
-writeRaster(dtm_cernohor_p1,"dtm_cernohor_p1")
 
 
-cp=readShapePoly("~/Plocha/DATA/GITHUB/VUVhydromod/GIS/Rozvodnice-Cernohorsky-podrobne.shp")
+
+vp=readShapePoly("~/Plocha/DATA/GITHUB/VUVhydromod/GIS/Rozvodnice-Zeleny-podrobne.shp")
 hp=readShapePoly("~/Plocha/DATA/GITHUB/VUVhydromod/GIS/Rozvodnice-Hutsky-podrobne.shp")
 stanice=readOGR("~/Plocha/DATA/GITHUB/VUVhydromod/GIS/VUV-profily.shp")
 tokyh=readShapeLines("~/Plocha/DATA/GITHUB/VUVhydromod/GIS/Toky-hlavni.shp")
@@ -40,15 +38,23 @@ vlek=readShapeLines("~/Plocha/DATA/GITHUB/VUVhydromod/GIS/vlekyalanovky.shp")
 metstanice=readOGR("~/Plocha/DATA/GITHUB/VUVhydromod/GIS/metstanice.shp")
 
 
+
+#oseknuti rastru na povodi k prvnimu mernemu profilu VUV
+vp=vp[c(2,6),]
+dtm_vlci_p1=mask(raster('dtm_zeleny'),vp)
+writeRaster(dtm_vlci_p1,"dtm_vlci_p1")
+
+
+
 setwd("~/Plocha/DATA/GITHUB/VUVhydromod/GIS")
-povodi=raster('dtm_povodi')
-m=c(0, 600, 1, 600, 800, 2, 800, 1000, 3, 1000, 1200, 4, 1200, 1600, 5)
+povodi=raster('dtm_vlci_p1')
+m=c(0, 600, 1, 600, 799, 2, 799, 1000, 3, 1000, 1200, 4, 1200, 1600, 5) #upravit zpet na 8000
 rclmat = matrix(m, ncol=3, byrow=TRUE)
 recdem = reclassify(povodi, rclmat)
 #recdempol= rasterToPolygons(povodi, fun=function(x){400<x;x<600}, dissolve=FALSE)
 
 
-povodi=raster('dtm_cernohor_p1')
+povodi=raster('dtm_vlci_p1')
 #povodi=raster('dtm_hutsky')
 #povodi=raster('dtm_zeleny')
 #povodi=raster('dtm_svatopetr')
@@ -57,11 +63,11 @@ breaks=c(0, 600)
 cp1=cut(povodi, breaks = breaks)
 z1=mask(povodi, cp1)
 
-breaks=c(600, 800)
+breaks=c(600, 799)
 cp2=cut(povodi, breaks = breaks)
 z2=mask(povodi,cp2)
 
-breaks=c(800, 1000)
+breaks=c(799, 1000)
 cp3=cut(povodi, breaks = breaks)
 z3=mask(povodi,cp3)
 
@@ -187,7 +193,7 @@ stanice_t=cbind(st1[,2],st2[,2],st3[,2],st4[,2],st5[,2],st6[,2],st7[,2],st8[,2],
 stanice_dat=st1[,1]
 
 setwd("~/Plocha/DATA/GITHUB/VUVhydromod/GIS")
-povodi=raster('dtm_cernohor_p1')
+povodi=raster('dtm_vlci_p1')
 h=metstanice$Z
 fun<- function(x) {a + (x * b)}
 zone=c(z1,z2,z3,z4,z5)
@@ -224,20 +230,21 @@ zonetab=rbind (zonetab, tab)
 zoneT=zonetab
 rownames(zoneT)=(zonetab[[1]])
 zoneT$Date=NULL
-colnames(zoneT)=c("del","", "", "", "")
+colnames(zoneT)=c("del","del", "T", "T", "T")
 zoneT$del=NULL
-zoneT=data.matrix(zoneT)
+zoneT$del=NULL
+
 
 
 ###### Vypocet PET ##########################################################################################################
 
 zonePET=data.frame(Date=zonetab[1])
 
-for (i in 2:5 ) { 
+for (i in 1:3 ) { 
 
 #a= 50   # rozloha km2
 b <- bil.new("d")
-bil.set.values(b, input_vars = zonetab[i], init_date = "2017-12-01")
+bil.set.values(b, input_vars = zoneT[i], init_date = "2017-12-01") #pokud nejde, pouzit zoneT jako DF, ne jako matrix, radek 228
 bil.pet(b)
 bil.get.values(b)
 #bil.set.area(b, a) # a=plocha povodi Dolni Sytova = 321.64 km2
@@ -259,11 +266,11 @@ zonePET =cbind(zonePET,PET)
 
 #uprava pro TUWmodel
 zonePET$Date=NULL
-colnames(zonePET)=c("", "", "", "")
+colnames(zonePET)=c("", "", "")
 rownames(zonePET)=(zonetab[[1]])
 zonePET=data.matrix(zonePET)
 
-
+zoneT=data.matrix(zoneT)
 
 ####### Srazky ####
 
@@ -280,14 +287,14 @@ st8=with(st8, st8[(Date >= "2017-12-01")])
 
 st8$V2=st8$V1
 st8$V3=st8$V1
-st8$V4=st8$V1
+#st8$V4=st8$V1
 #st8$V5=st8$V1
 zoneP=st8
 #colnames(zoneP)=c("Date", "P", "P", "P", "P")
 zoneP$Date=NULL
-colnames(zoneP)=c("", "", "", "")
+colnames(zoneP)=c( "", "", "")
 
-#zoneP=as.matrix(as.numeric(zoneP))
+zoneP=as.data.frame(zoneP)
 rownames(zoneP)=(zonetab[[1]])
 zoneP=data.matrix(zoneP)
 
@@ -295,14 +302,17 @@ zoneP=data.matrix(zoneP)
 #### Prutoky  #######
 
 setwd("~/Plocha/DATA/GITHUB/VUVhydromod/Data/Data/Prutoky")
-Q_obs=data.frame(read.table("cernohorsky2-01.txt",header=TRUE, col.names=c("Date", "Time", "Q")))
+Q_obs=data.frame(read.table("Prutok-Vlci2.txt",header=TRUE, col.names=c("Date", "Time", "Q")))
 Q_obs=data.table(Q_obs)
 Q_obs=na.omit(Q_obs)
 Q_obs=Q_obs[,mean(Q), by = Date]
 Q_obs$Date <- format(as.Date(Q_obs$Date, format = "%d.%m.%Y"), "%Y-%m-%d")
 Q_obs=with(Q_obs, Q_obs[(Date < "2018-08-02")])
 
+a=4.187
 
+Q_obs$R=(((Q_obs$V1*60*60*24)/(a*1000000))*1000)
+Q_obs$V1=NULL  #odstrani prutoky v m3/s
 
 
 
@@ -345,21 +355,38 @@ ggmap(map1)
 
 f=freq(recdem, useNA="no")
 s=sum(f[,2])
-zoneAreas=c(f[1,2]/s, f[2,2]/s, f[3,2]/s, f[4,2]/s)
-zoneP[2]=NULL
+zoneAreas=c(f[1,2]/s, f[2,2]/s, f[3,2]/s )   #f[4,2]/s, f[5,2]/s
+#zoneP[2]=NULL
 
-parametri <- matrix(rep(c(1.02,1.70,2,0,-0.336,
-                          0.934,121,2.52,
-                          0.473,9.06,142,
-                          50.1,2.38,10,25), 6), ncol=6)
-parametri[2,] <- c(1.4, 1.7, 1.9, 2.2, 2.4, 3.0)
+parametri <- matrix(rep(c(1.1,2.70,2.5,0,-0.336,
+                          0.934,70,15.52,
+                          0.2,10.06,142,
+                          2.1,2.38,10,25), 3), ncol=3)  #nastavit pocet zon !
+parametri[2,] <- c( 1.9, 2.1, 2.3)                       # DDF pro jednotlive zony, treba upravit dle poctu zon
 simDist2 <- TUWmodel(prec = zoneP,
                      airt = zoneT, 
                      ep = zonePET, 
                      area = zoneAreas,
                      param = parametri)
-plot(as.Date(Q_obs$Date), Q_obs$V1, type="l", xlab="", ylab = "Odtok [mm/den]")
+plot(as.Date(Q_obs$Date), Q_obs$R, type="l", xlab="", ylab = "Odtok [mm/den]", main="TUWmodel", xlim=as.Date(c('2018-02-01','2018-08-01')))
 lines(as.Date(rownames(zoneT)), simDist2$q, col=2)
 legend("topleft", legend = c("Pozorovane","Simulovane"), col = c(1, 2), lty = 1, bty = "n")
 
 plot(as.Date(rownames(zoneT)), simDist2$q, col=2, type="l")
+
+
+#tvorba tabulky pro AirGR a Bilan
+
+BasinObs=zonetab[1]
+BasinObs$Date=as.POSIXlt(zonetab$Date)
+
+zoneT$avg = apply(zoneT,1,mean,na.rm=TRUE)
+
+BasinObs$T=zoneT$avg
+BasinObs$P=zoneP[,1]
+
+zonePET$avg=apply(zonePET,1,mean,na.rm=TRUE)
+BasinObs$E=zonePET$avg
+
+BasinObs$R=Q_obs$R
+saveRDS(BasinObs,"BasinObs_Vlci")

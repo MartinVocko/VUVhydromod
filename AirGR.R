@@ -8,39 +8,41 @@ RunModel_CemaNeigeGR5J() #: combined use of GR5J and CemaNeige
 RunModel_CemaNeigeGR6J() #: combined use of GR6J and CemaNeige
 
 
-BasinObs = readRDS("airGRdata")  #data naformatovana ve skriptu airgr_teaching
+#BasinObs = readRDS("airGRdata")  #data naformatovana ve skriptu airgr_teaching
+setwd("~/Plocha/DATA/GITHUB/VUVhydromod")
+BasinObs = readRDS("BasinObs_Vlci")
 summary(BasinObs)
 
 
 #INPUTS MODEL OBJECT
-h=seq(from = 200, to = 1200, by = ((1000)/(100)))   #set of altitudes
-InputsModel <- CreateInputsModel(FUN_MOD = RunModel_CemaNeigeGR4J, DatesR = BasinObs$DatesR,
+h=seq(from = 750, to = 1350, by = (600/100) )  #set of altitudes
+InputsModel <- CreateInputsModel(FUN_MOD = RunModel_CemaNeigeGR4J, DatesR = BasinObs$Date,
                                  Precip = BasinObs$P, PotEvap = BasinObs$E, TempMean = BasinObs$T,HypsoData = h, ZInputs = median(h))
 str(InputsModel)
 
 #RUN OPTIONS OBJECT
-Ind_Run <- seq(which(format(BasinObs$DatesR, format = "%d/%m/%Y")=="01/01/2013"), 
-               which(format(BasinObs$DatesR, format = "%d/%m/%Y")=="01/08/2018"))
+Ind_Run <- seq(which(format(BasinObs$Date, format = "%d/%m/%Y")=="01/02/2018"), 
+               which(format(BasinObs$Date, format = "%d/%m/%Y")=="01/08/2018"))
 str(Ind_Run)
 
-Ind_warm <- seq(which(format(BasinObs$DatesR, format = "%d/%m/%Y")=="01/01/2012"), 
-                which(format(BasinObs$DatesR, format = "%d/%m/%Y")=="31/12/2012"))
+Ind_warm <- seq(which(format(BasinObs$Date, format = "%d/%m/%Y")=="01/12/2017"), 
+                which(format(BasinObs$Date, format = "%d/%m/%Y")=="31/01/2018"))
 
 ### !!!!!! kouknonout na snehova kriteria !!!!!  #####
 RunOptions <- CreateRunOptions(FUN_MOD = RunModel_CemaNeigeGR4J,
                                InputsModel = InputsModel, IndPeriod_Run = Ind_Run,
-                               IniStates = NULL, IniResLevels = NULL, IndPeriod_WarmUp = Ind_warm, MeanAnSolidPrecip = c(70, 90, 110, 130, 150))
+                               IniStates = NULL, IniResLevels = NULL, IndPeriod_WarmUp = Ind_warm ) #MeanAnSolidPrecip = c(70, 90, 110, 130, 150)
 
 str(RunOptions)
 
 #INPUTS CRIT OBJECT
 InputsCrit <- CreateInputsCrit(FUN_CRIT = ErrorCrit_KGE, InputsModel = InputsModel, 
-                               RunOptions = RunOptions, Qobs = BasinObs$Qmm[Ind_Run])
+                               RunOptions = RunOptions, Qobs = BasinObs$R[Ind_Run])
 str(InputsCrit)
 
 #CALIB OPTIONS OBJECT
 
-CalibOptions <- CreateCalibOptions(FUN_MOD = RunModel_CemaNeigeGR4J, FUN_CALIB = Calibration_Michel, SearchRanges = c(0, 200, -3, 3, 0, 100, 0.5, 3, 0, 20) )
+CalibOptions <- CreateCalibOptions(FUN_MOD = RunModel_CemaNeigeGR4J, FUN_CALIB = Calibration_Michel, SearchRanges = NULL) 
 str(CalibOptions)
 
 #CALIBRATION
@@ -76,7 +78,7 @@ Param
 OutputsModel <- RunModel_CemaNeigeGR4J(InputsModel = InputsModel, RunOptions = RunOptions, Param = Param)
 str(OutputsModel)
 
-plot(OutputsModel, Qobs = BasinObs$Qmm[Ind_Run])
+plot(OutputsModel, Qobs = BasinObs$R[Ind_Run])
 
 >>>>>>> 50919ff1cf34ebdae09da7cef60c205ed1ef6ea3
 OutputsCrit <- ErrorCrit_KGE(InputsCrit = InputsCrit, OutputsModel = OutputsModel)
