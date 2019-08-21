@@ -46,7 +46,7 @@ MET$P<-dpsum$V1
 MET$R<-0
 
 
-
+setwd("~/Plocha/DATA/GITHUB/VUVhydromod")
 MET=readRDS("BasinObs_Vlci")
 
 ### bilan
@@ -68,10 +68,14 @@ res=bil.get.values(b)
 res=data.table(res$vars)
 #PET=res$PET
 
-plot(as.Date(res$DTM), res$R, type="l", xlab="", ylab = "Odtok [mm/den]",main="Bilan",xlim=as.Date(c('2018-02-01','2018-08-01')))
+plot(as.Date(res$DTM), res$R, type="l", xlab="Měsíce", ylab = "Odtok [mm/den]",main="Bilan",xlim=as.Date(c('2018-02-01','2018-08-01')))
 lines(as.Date(res$DTM), res$RM, col=2)
 legend("topleft", legend = c("Pozorovane","Simulovane"), col = c(1, 2), lty = 1, bty = "n")
  
+plot(as.Date(res$DTM), simDist2$swe[,2], type="l", xlab="Měsíce", ylab = "Vodní hodnota sněhu [mm]",main="Porovnání zásob sněhu v povodí Vlčího potoka",xlim=as.Date(c('2017-12-02','2018-08-01')))
+lines(as.Date(res$DTM), res$SS, col=2)
+lines(as.Date(OutputsModel$DatesR), OutputsModel$CemaNeigeLayers$Layer03$SnowPack, col=3)
+legend("topleft", legend = c("TUWmodel","Bilan","AirGR"), col = c(1, 2,3), lty = 1, bty = "n")
 
 # Doplneni vypoctene PET
 MET$PET<-PET

@@ -21,12 +21,12 @@ InputsModel <- CreateInputsModel(FUN_MOD = RunModel_CemaNeigeGR4J, DatesR = Basi
 str(InputsModel)
 
 #RUN OPTIONS OBJECT
-Ind_Run <- seq(which(format(BasinObs$Date, format = "%d/%m/%Y")=="01/02/2018"), 
+Ind_Run <- seq(which(format(BasinObs$Date, format = "%d/%m/%Y")=="02/12/2017"), 
                which(format(BasinObs$Date, format = "%d/%m/%Y")=="01/08/2018"))
 str(Ind_Run)
 
 Ind_warm <- seq(which(format(BasinObs$Date, format = "%d/%m/%Y")=="01/12/2017"), 
-                which(format(BasinObs$Date, format = "%d/%m/%Y")=="31/01/2018"))
+                which(format(BasinObs$Date, format = "%d/%m/%Y")=="01/12/2017"))
 
 ### !!!!!! kouknonout na snehova kriteria !!!!!  #####
 RunOptions <- CreateRunOptions(FUN_MOD = RunModel_CemaNeigeGR4J,
@@ -53,8 +53,7 @@ OutputsCalib <- Calibration_Michel(InputsModel = InputsModel, RunOptions = RunOp
 
 Param <- OutputsCalib$ParamFinalR
 <<<<<<< HEAD
-OutputsModel <- RunModel_GR4J(InputsModel = InputsModel,
-                              RunOptions = RunOptions, Param = Param)
+#OutputsModel <- RunModel_GR4J(InputsModel = InputsModel, RunOptions = RunOptions, Param = Param)
 
 ## simulation
 #Param <- c(734.568, -0.840, 109.809, 1.971)
@@ -62,7 +61,7 @@ OutputsModel <- RunModel_GR4J(InputsModel = InputsModel,
                         # FUN_MOD = RunModel_GR4J)
 
 ## results preview
-plot(OutputsModel, Qobs = BasinObs$R[Ind_Run])
+#plot(OutputsModel, Qobs = BasinObs$R[Ind_Run])
 ## efficiency criterion: Nash-Sutcliffe Efficiency
 InputsCrit <- CreateInputsCrit(FUN_CRIT = ErrorCrit_NSE, InputsModel = InputsModel,
                                RunOptions = RunOptions, Qobs = BasinObs$R[Ind_Run])
@@ -79,6 +78,10 @@ OutputsModel <- RunModel_CemaNeigeGR4J(InputsModel = InputsModel, RunOptions = R
 str(OutputsModel)
 
 plot(OutputsModel, Qobs = BasinObs$R[Ind_Run])
+
+plot(as.Date(OutputsModel$DatesR), OutputsModel$Qsim, type="l", xlab="Měsíce", ylab = "Odtok [mm/den]",main="AirGR - CemaNeigeGR4J",xlim=as.Date(c('2018-02-01','2018-08-01')))
+lines(as.Date(OutputsModel$DatesR), OutputsModel$QR, col=2)
+legend("topleft", legend = c("Pozorovane","Simulovane"), col = c(1, 2), lty = 1, bty = "n")
 
 >>>>>>> 50919ff1cf34ebdae09da7cef60c205ed1ef6ea3
 OutputsCrit <- ErrorCrit_KGE(InputsCrit = InputsCrit, OutputsModel = OutputsModel)

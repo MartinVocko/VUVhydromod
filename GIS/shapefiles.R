@@ -1,3 +1,4 @@
+install.packages("devtools")
 install.packages("ggmap")
 install.packages('rgl')
 install.packages('rasterVis')
@@ -9,6 +10,9 @@ install.packages('maptools')
 install.packages('lubridate')
 install.packages('dplyr')
 install.packages('gstat')
+install.packages("RColorBrewer")
+install.packages('plotly')
+install.packages("data.table")
 
 library (ggmap)
 library(sp)  # vector data
@@ -24,6 +28,9 @@ library(dplyr)
 library(bilan)
 library(gstat)
 library(TUWmodel)
+library(RColorBrewer)
+library(plotly)
+library(reshape2)
 
 
 
@@ -37,7 +44,10 @@ sjezd=readShapeLines("~/Plocha/DATA/GITHUB/VUVhydromod/GIS/sjezdovky.shp")
 vlek=readShapeLines("~/Plocha/DATA/GITHUB/VUVhydromod/GIS/vlekyalanovky.shp")
 metstanice=readOGR("~/Plocha/DATA/GITHUB/VUVhydromod/GIS/metstanice.shp")
 
-
+#vp=readShapePoly("~/Plocha/DATA/GITHUB/VUVhydromod/GIS/Rozvodnice-Zeleny-potok.shp")
+#hp=readShapePoly("~/Plocha/DATA/GITHUB/VUVhydromod/GIS/Rozvodnice-Hutsky-potok.shp")
+#sp=readShapePoly("~/Plocha/DATA/GITHUB/VUVhydromod/GIS/Rozvodnice-Svatopetrskypotok.shp")
+#cp=readShapePoly("~/Plocha/DATA/GITHUB/VUVhydromod/GIS/Rozvodnice-Cernohorsky-potok.shp")
 
 #oseknuti rastru na povodi k prvnimu mernemu profilu VUV
 vp=vp[c(2,6),]
@@ -111,7 +121,33 @@ temptab
 #### a prepocitat teploty pro kazdou prumernou vysku zony
 
 #### Sestaveni tabulek teplot #######################################################
+
+
+###rozdeleni hromadne tabulky na jednotlive stanice
+
 setwd("~/Plocha/DATA/GITHUB/VUVhydromod/Data/Data/Teploty")
+tdat=data.frame(read.table("teploty.dsv",header=TRUE, col.names=c("Station","T", "Time"), sep=";"))
+nam=levels(tdat$Station)
+
+#st1=tdat[tdat$Station==(nam[1]),]
+td=data.table(dcast(tdat, DateTime ~ Station, value.var = "T" ))
+Hours <- format(as.POSIXct(td$DateTime, "%d.%m.%Y %H:%M:%S", tz = ""), format = "%H:%M")
+Dates <- format(as.Date(td$DateTime,"%d.%m.%Y %H:%M:%S"), format = "%d.%m.%Y")
+td$Time=Hours
+td$Date=Dates
+
+stanice=levels(tdat$Station)
+for (i in seq_along(stanice)){
+  st=tdat[tdat$Station == stanice[i],]
+  Dates <- format(as.Date(st$Time,"%d.%m.%Y %H:%M:%S"), format = "%d.%m.%Y")
+  st$Date=Dates
+
+  ########  ROzFACHAT prumerovani v cyklu ################
+  st=st[,mean(T), by = Date]
+  st[, mean(T), by = .(Station, day("Date"))]
+}
+
+
 
 st1=data.frame(read.table("SSLATO01.txt",header=TRUE, col.names=c("Date", "Time", "T")))
 st1=data.table(st1)
@@ -316,7 +352,7 @@ Q_obs$V1=NULL  #odstrani prutoky v m3/s
 
 
 
-############################################################
+########################################################################################################
 
 #linearni model vypocet teploty v zavislosti na vysce
 h=metstanice$Z
@@ -342,6 +378,21 @@ plot(vlek, col='red',lty=2, add=TRUE)
 plot(metstanice)
 pointLabel(coordinates(metstanice),labels=metstanice$Jméno_sig) #pridani popisku
 
+povodi=raster('dtm_povodi')
+plot(povodi,main ="Pozorovaná povodí a meteostanice" ,col=rev(brewer.pal(11,'RdYlGn')),axes=FALSE)
+plot(vp, add=TRUE)
+pointLabel(coordinates(vp),labels=vp$NAZEV_TOK, cex = 1) 
+plot(hp, add=TRUE)
+pointLabel(coordinates(hp),labels=hp$NAZEV_TOK, cex=1) 
+plot(sp, add=TRUE)
+pointLabel(coordinates(sp),labels=sp$NAZEV_TOK, cex=1) 
+plot(cp, add=TRUE)
+pointLabel(coordinates(cp),labels=cp$NAZEV_TOK, cex=1) 
+plot(metstanice,add=TRUE, pch=20)
+pointLabel(coordinates(metstanice),labels=metstanice$Stanice, cex = 0.7) 
+
+
+
 povodi=SpatialPolygons(list(cp,hp))
 
 map1 <- get_map(location = "Praha",
@@ -351,7 +402,7 @@ map1 <- get_map(location = "Praha",
                 zoom = 10)
 ggmap(map1)
 
-###### Model #######
+###### Model #################################################################################################3333333
 
 f=freq(recdem, useNA="no")
 s=sum(f[,2])
@@ -368,7 +419,7 @@ simDist2 <- TUWmodel(prec = zoneP,
                      ep = zonePET, 
                      area = zoneAreas,
                      param = parametri)
-plot(as.Date(Q_obs$Date), Q_obs$R, type="l", xlab="", ylab = "Odtok [mm/den]", main="TUWmodel", xlim=as.Date(c('2018-02-01','2018-08-01')))
+plot(as.Date(Q_obs$Date), Q_obs$R, type="l", xlab="Měsíce", ylab = "Odtok [mm/den]", main="TUWmodel", xlim=as.Date(c('2018-02-01','2018-08-01')))
 lines(as.Date(rownames(zoneT)), simDist2$q, col=2)
 legend("topleft", legend = c("Pozorovane","Simulovane"), col = c(1, 2), lty = 1, bty = "n")
 
